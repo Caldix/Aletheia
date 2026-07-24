@@ -72,6 +72,7 @@ function safeParseJSON(raw){
 $('go').onclick = async ()=>{
   const situatie = $('situatie').value.trim();
   if(!situatie){ showErr("Scrie mai întâi ce situație vrei să abordeze povestea."); return; }
+  if(!settings.apiKey){ showErr("Lipsește cheia API — apasă ⚙️ sus în dreapta, lipește cheia (sk-ant-…) și salvează."); $('settings').style.display='block'; initSettings(); return; }
   hideErr(); $('go').disabled=true; $('form').style.opacity=.6;
   $('prog').classList.add('show'); $('book').classList.remove('show');
   setProg(20,"Se scrie povestea…");
@@ -111,7 +112,10 @@ Format: {"titlu":"...","paragrafe":["...","..."]}`;
                 paragrafe:story.paragrafe };
     renderBook(current);
   }catch(e){
-    showErr("Nu am reușit să creez povestea: "+e.message+" — încearcă din nou.");
+    let msg = e.message;
+    if(/failed to fetch|networkerror|load failed/i.test(msg))
+      msg = "Conexiunea către api.anthropic.com a fost blocată. Verifică internetul și dezactivează Brave Shields / adblock pentru acest site (iconița leu → Shields Down), apoi încearcă din nou.";
+    showErr("Nu am reușit să creez povestea: "+msg);
   }finally{
     $('go').disabled=false; $('form').style.opacity=1; $('prog').classList.remove('show');
   }
