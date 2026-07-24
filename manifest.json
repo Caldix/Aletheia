@@ -1,6 +1,6 @@
 {
-  "name": "Aletheia — povești pentru copii",
-  "short_name": "Aletheia",
+  "name": "Poveștar — povești pentru copii",
+  "short_name": "Poveștar",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#FBF6EC",

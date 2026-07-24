@@ -105,3 +105,6 @@ header{position:relative}
   font-size:1.2rem;padding:8px 10px;cursor:pointer;box-shadow:0 3px 10px rgba(90,80,60,.12);
 }
 .hint{font-size:.8rem;color:var(--ink-soft);margin-top:6px}
+.story-page{padding:6px 24px 24px;font-size:1.15rem}
+.story-page p{margin-bottom:14px}
+.story-page p:first-child::first-letter{font-family:'Baloo 2',cursive;font-size:2em;color:var(--forest);line-height:1}

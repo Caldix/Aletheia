@@ -1,5 +1,5 @@
 // Aletheia service worker — network-first (updates always win, cache as offline fallback)
-const CACHE = 'aletheia-v7';
+const CACHE = 'aletheia-v8';
 const ASSETS = ['./','./index.html','./style.css','./app.js','./manifest.json','./icons/icon-192.png','./icons/icon-512.png'];
 
 self.addEventListener('install', e => {
