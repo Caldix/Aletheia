@@ -12,10 +12,40 @@ const MODEL_TEXT = "claude-sonnet-4-6";
 let selAge = AGES[2], current = null;
 
 // ---------- settings ----------
-let settings = store.get('settings') || { apiKey:"" };
-function initSettings(){ $('apiKey').value = settings.apiKey||""; }
+const ART_STYLES = [
+  {id:"miyazaki", nume:"Ghibli / Miyazaki",
+   prompt:"hand-painted Studio Ghibli animation background art in the tradition of Hayao Miyazaki: soft gouache and watercolour textures, luminous naturalistic light, lush layered greenery, gentle cumulus skies, warm domestic interiors with lived-in clutter, characters with simple rounded features and calm expressive faces, no outlines harsher than a soft brush line, deep sense of quiet and wonder"},
+  {id:"andronic", nume:"Ilustrație românească",
+   prompt:"contemporary Romanian children's-book illustration in the spirit of Mădălina Andronic: flat gouache-and-ink textures, folk-art motifs, earthy palette of ochre, deep green, terracotta and cream, decorative stylised plants and animals, elegant naive figures, hand-printed grain, poetic and warm"},
+  {id:"acuarela", nume:"Acuarelă clasică",
+   prompt:"classic children's-book watercolour: soft wet-on-wet washes, visible paper grain, delicate ink linework, muted natural palette, generous white space, tender storybook mood in the tradition of Beatrix Potter and Quentin Blake"},
+  {id:"papercut", nume:"Colaj de hârtie",
+   prompt:"hand-made paper collage illustration: torn and cut textured papers layered with visible fibres, warm folk palette, bold simple shapes, subtle shadows between layers, tactile and playful, in the tradition of Eric Carle and Sara Fanelli"}
+];
+const ART_COUNTS = [2,3,4];
+let settings = Object.assign({ apiKey:"", gemKey:"", artStyle:"miyazaki", artCount:3 }, store.get('settings')||{});
+function initSettings(){
+  $('apiKey').value = settings.apiKey||"";
+  $('gemKey').value = settings.gemKey||"";
+  $('artStyles').innerHTML=""; 
+  ART_STYLES.forEach(s=>{
+    const b=document.createElement('button'); b.className='chip'+(s.id===settings.artStyle?' on':''); b.textContent=s.nume;
+    b.onclick=()=>{ settings.artStyle=s.id; initSettings(); };
+    $('artStyles').appendChild(b);
+  });
+  $('artCounts').innerHTML="";
+  ART_COUNTS.forEach(n=>{
+    const b=document.createElement('button'); b.className='chip'+(n===settings.artCount?' on':''); b.textContent=n;
+    b.onclick=()=>{ settings.artCount=n; initSettings(); };
+    $('artCounts').appendChild(b);
+  });
+}
 $('setBtn').onclick = ()=>{ const s=$('settings'); s.style.display = s.style.display==='none'?'block':'none'; initSettings(); };
-$('setSave').onclick = ()=>{ settings.apiKey=$('apiKey').value.trim(); store.set('settings',settings); $('settings').style.display='none'; };
+$('setSave').onclick = ()=>{
+  settings.apiKey=$('apiKey').value.trim();
+  settings.gemKey=$('gemKey').value.trim();
+  store.set('settings',settings); $('settings').style.display='none';
+};
 $('testBtn').onclick = async ()=>{
   const key = $('apiKey').value.trim();
   const out = $('testOut');
@@ -65,6 +95,80 @@ async function claude(prompt, maxTokens, model){
   return d.content.filter(c=>c.type==="text").map(c=>c.text).join("\n");
 }
 const stripFences = t => t.replace(/```(json|svg|xml)?/g,"").trim();
+
+// ---------- IndexedDB pentru imagini (prea mari pentru localStorage) ----------
+function idb(){
+  return new Promise((res,rej)=>{
+    const r = indexedDB.open('povestar',1);
+    r.onupgradeneeded = ()=> r.result.createObjectStore('images');
+    r.onsuccess = ()=> res(r.result);
+    r.onerror = ()=> rej(r.error);
+  });
+}
+async function imgSave(key, dataUrl){
+  try{ const db=await idb(); const tx=db.transaction('images','readwrite'); tx.objectStore('images').put(dataUrl,key); }catch(e){}
+}
+async function imgLoad(key){
+  try{
+    const db=await idb();
+    return await new Promise(res=>{
+      const rq=db.transaction('images','readonly').objectStore('images').get(key);
+      rq.onsuccess=()=>res(rq.result||null); rq.onerror=()=>res(null);
+    });
+  }catch(e){ return null }
+}
+
+// ---------- Gemini: generare ilustrații ----------
+async function geminiImage(prompt, refImageDataUrl){
+  const parts = [{text: prompt}];
+  if(refImageDataUrl){
+    const [meta,b64] = refImageDataUrl.split(',');
+    parts.push({inline_data:{mime_type: meta.includes('png')?'image/png':'image/jpeg', data: b64}});
+  }
+  const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent",{
+    method:"POST",
+    headers:{"Content-Type":"application/json","x-goog-api-key":settings.gemKey},
+    body:JSON.stringify({contents:[{parts}]})
+  });
+  const d = await r.json();
+  if(d.error) throw new Error(d.error.message||"Eroare Gemini");
+  const part = (((d.candidates||[])[0]||{}).content||{}).parts?.find(p=>p.inlineData||p.inline_data);
+  if(!part) throw new Error("Gemini nu a returnat imagine");
+  const inline = part.inlineData||part.inline_data;
+  return `data:${inline.mimeType||inline.mime_type||'image/png'};base64,${inline.data}`;
+}
+
+async function makeIllustrations(story, storyId){
+  const style = ART_STYLES.find(s=>s.id===settings.artStyle)||ART_STYLES[0];
+  const n = settings.artCount||3;
+  // 1. Claude alege momentele și scrie brief-urile vizuale
+  const briefPrompt = `Read this Romanian children's story and pick the ${n} most visually beautiful moments to illustrate.
+Story: ${JSON.stringify(story)}
+For each, write an art brief in English describing exactly what is drawn: characters (with consistent appearance — age, hair, clothing colours, species), their action and expression, the setting, time of day, and mood. Be concrete and specific. No text or lettering in the images.
+Also give a shared character sheet describing the main characters so they look identical across all images.
+Respond ONLY with valid single-line JSON: {"personaje":"character sheet...","imagini":[{"paragraf":<index of the paragraph it illustrates, 0-based>,"brief":"..."}]}`;
+  const plan = safeParseJSON(await claude(briefPrompt, 1500, MODEL_TEXT));
+
+  const images = [];
+  let ref = null;
+  for(let i=0;i<plan.imagini.length;i++){
+    setProg(70 + (i+1)*(28/plan.imagini.length), `Se pictează ilustrația ${i+1} din ${plan.imagini.length}…`);
+    const p = `Children's picture-book illustration, no text or lettering anywhere in the image.
+Art style: ${style.prompt}
+Characters (must look identical in every illustration): ${plan.personaje}
+Scene: ${plan.imagini[i].brief}
+Full-bleed painterly illustration, 4:3 landscape, rich background, characters as focal point, gentle storybook atmosphere.`;
+    try{
+      const url = await geminiImage(p, ref);
+      if(!ref) ref = url;                       // prima imagine devine referință de consistență
+      const key = `${storyId}-${i}`;
+      await imgSave(key, url);
+      images.push({key, paragraf: plan.imagini[i].paragraf});
+    }catch(e){ /* sărim peste ilustrația eșuată */ }
+  }
+  return images;
+}
+
 
 // ---------- robust JSON parsing ----------
 function safeParseJSON(raw){
@@ -154,10 +258,17 @@ Format: {"titlu":"...","paragrafe":["...","..."]}`;
     let story;
     try{ story = safeParseJSON(await claude(editPrompt, 3000, MODEL_TEXT)); }
     catch(e){ story = draft; }  // dacă trecerea editorială eșuează, păstrăm ciorna
+
+    const storyId = Date.now();
+    let imagini = [];
+    if(settings.gemKey){
+      try{ imagini = await makeIllustrations(story, storyId); }
+      catch(e){ showErr("Povestea e gata, dar ilustrațiile nu au putut fi generate: "+e.message); }
+    }
     setProg(100,"Gata!");
-    current = { id:Date.now(), titlu:story.titlu, varsta:selAge, situatie,
-                paragrafe:story.paragrafe };
-    renderBook(current);
+    current = { id:storyId, titlu:story.titlu, varsta:selAge, situatie,
+                paragrafe:story.paragrafe, imagini };
+    await renderBook(current);
   }catch(e){
     let msg = e.message;
     if(/failed to fetch|networkerror|load failed/i.test(msg))
@@ -173,12 +284,26 @@ function showErr(t){ $('err').textContent=t; $('err').classList.add('show'); }
 function hideErr(){ $('err').classList.remove('show'); }
 
 // ---------- render ----------
-function renderBook(st){
+async function renderBook(st){
   $('bTitle').textContent = st.titlu;
   $('bSub').textContent = `${st.varsta} · ${st.situatie}`;
-  const paras = st.paragrafe || (st.scene||[]).map(s=>s.text); // compat: povești vechi cu scene
-  $('spreads').innerHTML = `<div class="story-page">` +
-    paras.map(p=>`<p>${esc(p)}</p>`).join("") + `</div>`;
+  const paras = st.paragrafe || (st.scene||[]).map(s=>s.text);
+  // încarcă imaginile din IndexedDB
+  const byPara = {};
+  for(const im of (st.imagini||[])){
+    const url = await imgLoad(im.key);
+    if(url) (byPara[im.paragraf] = byPara[im.paragraf] || []).push(url);
+  }
+  let html = `<div class="story-page">`;
+  paras.forEach((p,i)=>{
+    (byPara[i]||[]).forEach(url=>{ html += `<img class="illus" src="${url}" alt="">`; });
+    html += `<p>${esc(p)}</p>`;
+  });
+  // imagini cu index în afara intervalului, puse la final
+  Object.keys(byPara).filter(k=>k>=paras.length).forEach(k=>{
+    byPara[k].forEach(url=>{ html += `<img class="illus" src="${url}" alt="">`; });
+  });
+  $('spreads').innerHTML = html + `</div>`;
   $('book').classList.add('show');
   $('book').scrollIntoView({behavior:'smooth'});
 }

@@ -26,9 +26,19 @@
     <input type="text" id="apiKey" placeholder="sk-ant-…" autocomplete="off">
     <p class="hint">Cheia se salvează doar în browserul tău (localStorage) și e trimisă direct către api.anthropic.com. O obții din console.anthropic.com → API Keys.</p>
     <p class="hint">Model: <b>Sonnet 4.6</b>. Fiecare poveste se scrie în două trepte — ciornă, apoi o trecere editorială care o șlefuiește. ≈ $0,05 / poveste.</p>
-    <button class="btn secondary" id="setSave">Salvează setările</button>
     <button class="btn secondary" id="testBtn">🔌 Testează conexiunea</button>
     <p class="hint" id="testOut"></p>
+
+    <hr class="sep">
+    <label for="gemKey">Cheie API Google Gemini (pentru ilustrații)</label>
+    <input type="text" id="gemKey" placeholder="AIza… — lasă gol pentru povești doar cu text" autocomplete="off">
+    <p class="hint">O obții din aistudio.google.com → Get API key. Ilustrațiile costă ~$0,07 fiecare, plătite Google separat.</p>
+
+    <label>Stilul ilustrațiilor</label>
+    <div class="age-row" id="artStyles"></div>
+    <label for="artCount">Câte ilustrații pe poveste</label>
+    <div class="age-row" id="artCounts"></div>
+    <button class="btn secondary" id="setSave">Salvează setările</button>
   </div>
 
   <div class="card" id="form">

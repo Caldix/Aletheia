@@ -108,3 +108,9 @@ header{position:relative}
 .story-page{padding:6px 24px 24px;font-size:1.15rem}
 .story-page p{margin-bottom:14px}
 .story-page p:first-child::first-letter{font-family:'Baloo 2',cursive;font-size:2em;color:var(--forest);line-height:1}
+.illus{
+  width:calc(100% + 48px);margin:18px -24px;display:block;border-radius:2px;
+  box-shadow:0 6px 20px rgba(90,80,60,.14);
+}
+.illus:first-child{margin-top:0}
+.sep{border:none;border-top:1px dashed #E7DFD2;margin:20px 0 4px}
