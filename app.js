@@ -1,3 +1,4 @@
+const $ = id => document.getElementById(id);
 // ---------- storage (localStorage with in-memory fallback) ----------
 const mem = {};
 const store = {
@@ -31,7 +32,6 @@ $('setSave').onclick = ()=>{ settings.apiKey=$('apiKey').value.trim(); store.set
 initSettings();
 
 // ---------- UI setup ----------
-const $ = id => document.getElementById(id);
 AGES.forEach(a=>{
   const b=document.createElement('button'); b.className='chip'+(a===selAge?' on':''); b.textContent=a;
   b.onclick=()=>{ selAge=a; document.querySelectorAll('#ages .chip').forEach(x=>x.classList.toggle('on',x.textContent===a)); };
