@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#5C7A5E">
+<title>Aletheia — povești pentru copii</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=Nunito:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><img src="icons/icon-192.png" alt="" class="logo"> Aletheia</h1>
+    <p>Povești pe măsura copilului tău, cu ilustrații blânde</p>
+    <button id="setBtn" class="gear" title="Setări">⚙️</button>
+  </header>
+
+  <div class="card" id="settings" style="display:none">
+    <h2 class="sec">⚙️ Setări</h2>
+    <label for="apiKey">Cheie API Anthropic</label>
+    <input type="text" id="apiKey" placeholder="sk-ant-…" autocomplete="off">
+    <p class="hint">Cheia se salvează doar în browserul tău (localStorage) și e trimisă direct către api.anthropic.com. O obții din console.anthropic.com → API Keys.</p>
+    <p class="hint">Modele: povestea e scrisă cu <b>Haiku 4.5</b> (rapid, ieftin), ilustrațiile cu <b>Sonnet 4.6</b> (calitate). ≈ $0,19 / poveste.</p>
+    <button class="btn secondary" id="setSave">Salvează setările</button>
+  </div>
+
+  <div class="card" id="form">
+    <label>Vârsta copilului</label>
+    <div class="age-row" id="ages"></div>
+
+    <label for="situatie">Ce situație vrei să abordeze povestea?</label>
+    <input type="text" id="situatie" placeholder="ex: învățatul la oliță, spălatul pe dinți, prima zi la grădiniță…">
+
+    <label for="directii">Direcții sau idei (opțional)</label>
+    <textarea id="directii" placeholder="ex: e important ca părinții să spele și ei copiii pe dinți, nu doar copiii singuri"></textarea>
+
+    <label for="atmosfera">Personaje, animale, anotimp (opțional)</label>
+    <input type="text" id="atmosfera" placeholder="ex: un iepuraș și o bufniță înțeleaptă, iarna, în pădure">
+
+    <label for="nume">Numele copilului (opțional — devine eroul poveștii)</label>
+    <input type="text" id="nume" placeholder="ex: Maia">
+
+    <label>Stilul ilustrațiilor</label>
+    <div class="styles" id="styles"></div>
+
+    <button class="btn" id="go">✨ Creează povestea</button>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div class="card progress" id="prog">
+    <span class="moon">🌙</span>
+    <p id="progTxt">Se scrie povestea…</p>
+    <div class="bar"><i id="progBar"></i></div>
+  </div>
+
+  <div id="book">
+    <div class="card">
+      <div class="book-title" id="bTitle"></div>
+      <div class="book-sub" id="bSub"></div>
+      <div id="spreads"></div>
+      <div class="actions">
+        <button class="btn secondary" id="saveBtn">💾 Salvează</button>
+        <button class="btn secondary" id="newBtn">➕ Poveste nouă</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="savedCard" style="display:none">
+    <h2 class="sec">📚 Povești salvate</h2>
+    <div id="savedList"></div>
+    <div class="actions">
+      <button class="btn secondary" id="expBtn">Export JSON</button>
+      <button class="btn secondary" id="impBtn">Import JSON</button>
+      <input type="file" id="impFile" accept=".json" hidden>
+    </div>
+  </div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
