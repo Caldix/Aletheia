@@ -73,9 +73,10 @@
         <option value="prieten">prieten</option>
         <option value="animalul de companie">animalul de companie</option>
       </select>
-      <button class="btn secondary" id="pAdd">📷 Adaugă poză</button>
-      <input type="file" id="pFile" accept="image/*" hidden>
+      <label class="btn secondary file-btn" for="pFile">📷 Adaugă poză</label>
+      <input type="file" id="pFile" accept="image/*" class="file-input">
     </div>
+    <p class="hint" id="pMsg"></p>
 
     <button class="btn" id="go">✨ Creează povestea</button>
     <div class="err" id="err"></div>

@@ -151,21 +151,22 @@ async function renderPeople(){
     box.appendChild(d);
   }
 }
-$('pAdd').onclick = ()=>{
-  if(!$('pName').value.trim()){ showErr("Scrie întâi numele persoanei, apoi alege poza."); return; }
-  hideErr(); $('pFile').click();
-};
 $('pFile').onchange = async e=>{
   const f=e.target.files[0]; if(!f) return;
+  const msg = $('pMsg');
+  msg.textContent = "Se pregătește poza…";
   try{
     const dataUrl = await compressImage(f);
+    const rol = $('pRole').value;
+    const nume = $('pName').value.trim() || rol.charAt(0).toUpperCase()+rol.slice(1);
     const id = 'p'+Date.now(), key='person-'+id;
     await imgSave(key, dataUrl);
-    people.push({id, nume:$('pName').value.trim(), rol:$('pRole').value, key});
+    people.push({id, nume, rol, key});
     store.set('people',people);
     $('pName').value=""; e.target.value="";
+    msg.textContent = `${nume} a fost adăugat${rol==='mama'||rol==='sora'||rol==='bunica'?'ă':''}.`;
     renderPeople();
-  }catch(err){ showErr("Poza nu a putut fi încărcată: "+err.message); }
+  }catch(err){ msg.textContent = "Poza nu a putut fi încărcată: "+err.message; }
 };
 renderPeople();
 

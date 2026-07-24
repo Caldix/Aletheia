@@ -124,3 +124,6 @@ header{position:relative}
 .person-add input[type=text]{flex:1;min-width:130px}
 .person-add select{flex:0 0 auto;width:auto;padding:12px 10px}
 .person-add .btn{margin-top:0;width:auto;flex:1;min-width:150px}
+.file-input{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+.file-btn{display:inline-block;text-align:center;margin-top:0;width:auto;flex:1;min-width:150px}
+.file-input:focus + .file-btn,.file-btn:focus{outline:2px solid var(--forest);outline-offset:2px}
