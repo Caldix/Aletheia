@@ -34,10 +34,6 @@
     <input type="text" id="gemKey" placeholder="AIza… — lasă gol pentru povești doar cu text" autocomplete="off">
     <p class="hint">O obții din aistudio.google.com → Get API key. Ilustrațiile costă ~$0,07 fiecare, plătite Google separat.</p>
 
-    <label>Stilul ilustrațiilor</label>
-    <div class="age-row" id="artStyles"></div>
-    <label for="artCount">Câte ilustrații pe poveste</label>
-    <div class="age-row" id="artCounts"></div>
     <button class="btn secondary" id="setSave">Salvează setările</button>
   </div>
 
@@ -78,6 +74,11 @@
     </div>
     <p class="hint" id="pMsg"></p>
 
+    <label>Stilul ilustrațiilor</label>
+    <div class="age-row" id="artStyles"></div>
+    <label>Câte ilustrații</label>
+    <div class="age-row" id="artCounts"></div>
+
     <button class="btn" id="go">✨ Creează povestea</button>
     <div class="err" id="err"></div>
   </div>
@@ -95,6 +96,7 @@
       <div id="spreads"></div>
       <div class="actions">
         <button class="btn secondary" id="saveBtn">💾 Salvează</button>
+        <button class="btn secondary" id="pdfBtn">📄 Trimite ca PDF</button>
         <button class="btn secondary" id="newBtn">➕ Poveste nouă</button>
       </div>
     </div>
@@ -110,6 +112,7 @@
     </div>
   </div>
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

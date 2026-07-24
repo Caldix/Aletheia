@@ -14,13 +14,13 @@ let selAge = AGES[2], current = null;
 // ---------- settings ----------
 const ART_STYLES = [
   {id:"miyazaki", nume:"Ghibli / Miyazaki",
-   prompt:"hand-painted Studio Ghibli animation background art in the tradition of Hayao Miyazaki: soft gouache and watercolour textures, luminous naturalistic light, lush layered greenery, gentle cumulus skies, warm domestic interiors with lived-in clutter, characters with simple rounded features and calm expressive faces, no outlines harsher than a soft brush line, deep sense of quiet and wonder"},
+   prompt:"Hand-painted Studio Ghibli animation art in the tradition of Hayao Miyazaki. Soft gouache and watercolour on board, luminous naturalistic daylight, lush layered greenery and big cumulus skies, warm lived-in interiors full of small objects, characters with simple rounded features and calm faces, no hard outlines, cinematic depth. Palette: sage and emerald greens, sky blue, cream, warm ochre."},
   {id:"andronic", nume:"Ilustrație românească",
-   prompt:"contemporary Romanian children's-book illustration in the spirit of Mădălina Andronic: flat gouache-and-ink textures, folk-art motifs, earthy palette of ochre, deep green, terracotta and cream, decorative stylised plants and animals, elegant naive figures, hand-printed grain, poetic and warm"},
+   prompt:"Contemporary Romanian folk-art children's illustration, in the spirit of Mădălina Andronic. FLAT graphic shapes with NO perspective depth and NO photographic realism — everything is decorative and stylised, like a hand-printed poster. Visible screen-print grain, thick matte gouache, embroidery-inspired motifs and geometric borders, stylised plants and animals arranged symmetrically, elongated naive figures with tiny simple faces. Palette strictly: ochre, brick red, deep forest green, indigo, cream. Absolutely no soft cinematic lighting."},
   {id:"acuarela", nume:"Acuarelă clasică",
-   prompt:"classic children's-book watercolour: soft wet-on-wet washes, visible paper grain, delicate ink linework, muted natural palette, generous white space, tender storybook mood in the tradition of Beatrix Potter and Quentin Blake"},
+   prompt:"Classic English children's-book WATERCOLOUR on white paper, in the tradition of Beatrix Potter and Quentin Blake. Loose wet-on-wet washes with visible paper grain and blooming edges, scratchy fine ink linework over the paint, LOTS of untouched white paper as background — no full-bleed colour, no dense backgrounds. Delicate, airy, muted natural palette. Looks painted by hand with a real brush, slightly imperfect."},
   {id:"papercut", nume:"Colaj de hârtie",
-   prompt:"hand-made paper collage illustration: torn and cut textured papers layered with visible fibres, warm folk palette, bold simple shapes, subtle shadows between layers, tactile and playful, in the tradition of Eric Carle and Sara Fanelli"}
+   prompt:"Handmade PAPER COLLAGE illustration, in the tradition of Eric Carle and Leo Lionni. Every element is a piece of torn or cut painted paper with visible fibres, brush texture and rough edges, layered flat with small shadows between layers. Bold simple silhouettes, no gradients, no painted lighting, no fine detail — shapes only. Bright warm palette on a plain paper background. Must clearly look like cut paper, not like a painting."}
 ];
 const ART_COUNTS = [2,3,4];
 let settings = Object.assign({ apiKey:"", gemKey:"", artStyle:"miyazaki", artCount:3 }, store.get('settings')||{});
@@ -30,13 +30,13 @@ function initSettings(){
   $('artStyles').innerHTML=""; 
   ART_STYLES.forEach(s=>{
     const b=document.createElement('button'); b.className='chip'+(s.id===settings.artStyle?' on':''); b.textContent=s.nume;
-    b.onclick=()=>{ settings.artStyle=s.id; initSettings(); };
+    b.onclick=()=>{ settings.artStyle=s.id; store.set('settings',settings); initSettings(); };
     $('artStyles').appendChild(b);
   });
   $('artCounts').innerHTML="";
   ART_COUNTS.forEach(n=>{
     const b=document.createElement('button'); b.className='chip'+(n===settings.artCount?' on':''); b.textContent=n;
-    b.onclick=()=>{ settings.artCount=n; initSettings(); };
+    b.onclick=()=>{ settings.artCount=n; store.set('settings',settings); initSettings(); };
     $('artCounts').appendChild(b);
   });
 }
@@ -196,8 +196,9 @@ async function makeIllustrations(story, storyId){
   // 1. Claude alege momentele și scrie brief-urile vizuale
   const briefPrompt = `Read this Romanian children's story and pick the ${n} most visually beautiful moments to illustrate.
 Story: ${JSON.stringify(story)}
-For each, write an art brief in English describing exactly what is drawn: characters (with consistent appearance — age, hair, clothing colours, species), their action and expression, the setting, time of day, and mood. Be concrete and specific. No text or lettering in the images.
-Also give a shared character sheet describing the main characters so they look identical across all images.
+${people.length ? `IMPORTANT: these characters are real people drawn from photographs — ${people.map(p=>`${p.nume} (${p.rol})`).join(', ')}. NEVER describe their face, hair, skin or age; only describe their clothing, posture, action and expression. Their appearance comes from the photos, not from you.` : ""}
+For each moment, write an art brief in English describing exactly what is drawn: who is present, their action and expression, the setting, time of day, and mood. Be concrete and specific. No text or lettering in the images.
+Also give a shared character sheet so characters look consistent — but for the real people above, list only their name, role and clothing.
 Respond ONLY with valid single-line JSON: {"personaje":"character sheet...","imagini":[{"paragraf":<index of the paragraph it illustrates, 0-based>,"brief":"..."}]}`;
   const plan = safeParseJSON(await claude(briefPrompt, 1500, MODEL_TEXT));
 
@@ -208,18 +209,23 @@ Respond ONLY with valid single-line JSON: {"personaje":"character sheet...","ima
     if(url){ photos.push(url); photoNotes.push(`reference photo ${photos.length}: ${p.nume}, ${p.rol}`); }
   }
   const likeness = photos.length
-    ? `The attached reference photos show the real people this story is about — ${photoNotes.join('; ')}. Draw these characters as stylised illustrations that clearly resemble them (face shape, hair colour and style, skin tone, approximate age, glasses if any), but fully redrawn in the art style described above. Never photorealistic — always a painted picture-book character.`
+    ? `LIKENESS IS THE TOP PRIORITY: the attached reference photos show the real people in this story — ${photoNotes.join('; ')}. Each character MUST be recognisably that person: same face shape, same hair colour and cut, same skin tone, same approximate age, glasses or other distinctive features kept. Redraw them completely in the art style below — a painted picture-book character, never a photograph or photorealistic render. If the scene description conflicts with a photo, the photo wins.`
     : "";
 
   const images = [];
   let ref = null;
   for(let i=0;i<plan.imagini.length;i++){
     setProg(70 + (i+1)*(28/plan.imagini.length), `Se pictează ilustrația ${i+1} din ${plan.imagini.length}…`);
-    const p = `Children's picture-book illustration, no text or lettering anywhere in the image.
-Art style: ${style.prompt}
-Characters (must look identical in every illustration): ${plan.personaje}
+    const p = `Children's picture-book illustration. No text or lettering anywhere in the image.
+
 ${likeness}
+
+ART STYLE — follow this exactly and let it dominate the whole image:
+${style.prompt}
+
+Characters: ${plan.personaje}
 Scene: ${plan.imagini[i].brief}
+
 Full-bleed painterly illustration, 4:3 landscape, rich background, characters as focal point, gentle storybook atmosphere.`;
     try{
       const url = await geminiImage(p, [...photos, ref]);
@@ -372,6 +378,97 @@ async function renderBook(st){
   $('book').scrollIntoView({behavior:'smooth'});
 }
 const esc = t => t.replace(/&/g,"&amp;").replace(/</g,"&lt;");
+
+// ---------- PDF (pagini desenate pe canvas → diacritice corecte) ----------
+const PW = 1000, PH = 1414, MARGIN = 90;
+
+function newPage(){
+  const c=document.createElement('canvas'); c.width=PW; c.height=PH;
+  const x=c.getContext('2d');
+  x.fillStyle='#FBF6EC'; x.fillRect(0,0,PW,PH);
+  return {c,x,y:MARGIN};
+}
+function wrapText(ctx, text, maxW){
+  const words=text.split(' '), lines=[]; let line='';
+  for(const w of words){
+    const t = line ? line+' '+w : w;
+    if(ctx.measureText(t).width > maxW && line){ lines.push(line); line=w; }
+    else line=t;
+  }
+  if(line) lines.push(line);
+  return lines;
+}
+async function buildPdfBlob(st){
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({unit:'px', format:[PW,PH], orientation:'portrait'});
+  const pages=[]; let pg=newPage(); let first=true;
+  const maxW = PW - MARGIN*2;
+
+  // titlu
+  pg.x.fillStyle='#3E5940'; pg.x.textBaseline='top';
+  pg.x.font='bold 58px Georgia, serif';
+  for(const line of wrapText(pg.x, st.titlu, maxW)){ pg.x.fillText(line, MARGIN, pg.y); pg.y+=68; }
+  pg.y += 10;
+  pg.x.fillStyle='#8A7F70'; pg.x.font='24px Georgia, serif';
+  pg.x.fillText(`${st.varsta} · ${st.situatie}`, MARGIN, pg.y); pg.y+=54;
+
+  const byPara={};
+  for(const im of (st.imagini||[])){
+    const url=await imgLoad(im.key);
+    if(url) (byPara[im.paragraf]=byPara[im.paragraf]||[]).push(url);
+  }
+  const paras = st.paragrafe || (st.scene||[]).map(s=>s.text);
+
+  const pushPage=()=>{ pages.push(pg.c); pg=newPage(); };
+
+  for(let i=0;i<paras.length;i++){
+    // ilustrații
+    for(const url of (byPara[i]||[])){
+      const img = await new Promise(r=>{ const im=new Image(); im.onload=()=>r(im); im.onerror=()=>r(null); im.src=url; });
+      if(img){
+        const w=maxW, h=Math.round(w*img.height/img.width);
+        if(pg.y + h > PH - MARGIN) pushPage();
+        pg.x.drawImage(img, MARGIN, pg.y, w, h);
+        pg.y += h + 34;
+      }
+    }
+    // text
+    pg.x.fillStyle='#4A4238'; pg.x.font='30px Georgia, serif'; pg.x.textBaseline='top';
+    for(const line of wrapText(pg.x, paras[i], maxW)){
+      if(pg.y + 46 > PH - MARGIN){ pushPage(); pg.x.fillStyle='#4A4238'; pg.x.font='30px Georgia, serif'; pg.x.textBaseline='top'; }
+      pg.x.fillText(line, MARGIN, pg.y); pg.y+=46;
+    }
+    pg.y += 26;
+  }
+  // subsol pe ultima pagină
+  pg.x.fillStyle='#8A7F70'; pg.x.font='20px Georgia, serif';
+  pg.x.fillText('Poveștar', MARGIN, PH-MARGIN+10);
+  pages.push(pg.c);
+
+  pages.forEach((c,i)=>{
+    if(i) pdf.addPage([PW,PH],'portrait');
+    pdf.addImage(c.toDataURL('image/jpeg',0.9), 'JPEG', 0, 0, PW, PH);
+  });
+  return pdf.output('blob');
+}
+
+$('pdfBtn').onclick = async ()=>{
+  if(!current) return;
+  const btn=$('pdfBtn'), label=btn.textContent;
+  btn.disabled=true; btn.textContent='📄 Se pregătește…';
+  try{
+    const blob = await buildPdfBlob(current);
+    const name = (current.titlu||'poveste').replace(/[^\p{L}\d ]/gu,'').slice(0,40)+'.pdf';
+    const file = new File([blob], name, {type:'application/pdf'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file], title:current.titlu});
+    }else{
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click();
+    }
+  }catch(e){
+    if(e.name!=='AbortError') showErr("PDF-ul nu a putut fi creat: "+e.message);
+  }finally{ btn.disabled=false; btn.textContent=label; }
+};
 
 // ---------- saved stories ----------
 function refreshSaved(){
