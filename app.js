@@ -21,7 +21,7 @@ const STYLES = [
 let selAge = AGES[2], selStyle = STYLES[0], current = null;
 
 // ---------- settings ----------
-const MODEL_TEXT = "claude-haiku-4-5";     // povestea — rapid și ieftin
+const MODEL_TEXT = "claude-sonnet-4-6";    // povestea — română corectă
 const MODEL_ART  = "claude-sonnet-4-6";    // ilustrațiile — calitate
 let settings = store.get('settings') || { apiKey:"" };
 function initSettings(){
@@ -103,19 +103,19 @@ $('go').onclick = async ()=>{
     const nume = $('nume').value.trim();
     const directii = $('directii').value.trim();
     const atmosfera = $('atmosfera').value.trim();
-    const storyPrompt = `Ești un autor de povești pentru copii, în limba română, cald și priceput.
+    const storyPrompt = `Ești un autor de povești pentru copii, cald și priceput. Scrii în limba română impecabilă, cu diacritice corecte.
 Scrie o poveste pentru un copil de ${selAge}, care abordează cu blândețe situația: "${situatie}".
 ${directii ? `Idei importante de integrat natural în poveste: ${directii}` : ""}
-${nume ? `Personajul principal se numește ${nume}.` : "Alege un personaj principal simpatic (copil sau animăluț)."}
+${nume ? `Personajul principal se numește ${nume}.` : "Alege un personaj principal simpatic (copil sau animăluț), cu un nume simplu și firesc."}
 ${atmosfera ? `Personaje, animale sau atmosferă dorite de părinte (integrează-le în poveste și în descrierile de ilustrații): ${atmosfera}` : ""}
 Cerințe:
-- limbaj și lungime adecvate vârstei ${selAge} (propoziții scurte pentru cei mici, mai bogate pentru cei mari)
+- limbaj și lungime adecvate vârstei ${selAge} (propoziții scurte și simple pentru cei mici, mai bogate pentru cei mari)
 - ton pozitiv, fără morală apăsată; lecția reiese din poveste
 - 4 scene, fiecare cu 2-5 propoziții
 - final liniștitor, potrivit pentru culcare
 Răspunde DOAR cu JSON valid pe o singură linie, fără backticks.
-FOARTE IMPORTANT pentru JSON valid: în interiorul textelor nu folosi niciodată ghilimele drepte ("). Pentru dialog folosește ghilimele românești („ și ") sau linia de dialog (—). Nu folosi newline în interiorul textelor.
-Format: {"titlu":"...","scene":[{"text":"...","ilustratie":"descriere vizuală concretă a scenei în engleză, pentru un ilustrator: personaje, acțiune, decor"}]}`;
+FOARTE IMPORTANT pentru JSON valid: în interiorul textelor nu folosi niciodată ghilimele drepte ("). Pentru dialog folosește ghilimele românești (\u201E \u201D) sau linia de dialog (—). Fără newline în interiorul textelor.
+Format: {"titlu":"...","scene":[{"text":"textul scenei în română","ilustratie":"concrete visual description of the scene IN ENGLISH for an illustrator: characters, action, setting"}]}`;
 
     const story = safeParseJSON(await claude(storyPrompt, 2000, MODEL_TEXT));
     setProg(30,"Povestea e gata! Se pictează ilustrațiile…");
@@ -138,16 +138,24 @@ Format: {"titlu":"...","scene":[{"text":"...","ilustratie":"descriere vizuală c
 };
 
 async function genSvg(desc, refDesc, stylePrompt){
-  const svgPrompt = `Create a children's book illustration as a single self-contained SVG (viewBox="0 0 800 600", no external refs, no scripts).
+  const svgPrompt = `Create a beautiful children's book illustration as a single self-contained SVG (viewBox="0 0 800 600", no external refs, no scripts, no <image> tags).
 Art style: ${stylePrompt}.
 Scene to illustrate: ${desc}
-Keep character design consistent: ${refDesc}
-Use layered shapes, soft gradients (defs), rounded forms. Rich, complete scene with background, midground, characters. No text inside the image.
-Respond ONLY with the SVG code, nothing else.`;
+Keep character design consistent with: ${refDesc}
+Composition guidance: full background (sky/room with soft gradient), midground scenery, characters as the clear focal point with friendly faces (simple dot eyes, soft blush cheeks), gentle lighting touches, 2-3 small charming details. Rounded organic shapes, layered depth, harmonious pastel palette.
+Stay under 250 SVG elements so the file is complete. Respond ONLY with the SVG code, nothing else.`;
   try{
-    const svg = stripFences(await claude(svgPrompt, 4000, MODEL_ART));
-    const m = svg.match(/<svg[\s\S]*<\/svg>/);
-    return m ? m[0] : placeholderSvg();
+    let svg = stripFences(await claude(svgPrompt, 8000, MODEL_ART));
+    const start = svg.indexOf('<svg');
+    if(start === -1) return placeholderSvg();
+    svg = svg.slice(start);
+    if(!svg.includes('</svg>')){
+      // truncated output: cut at the last complete tag and close the document
+      svg = svg.slice(0, svg.lastIndexOf('>')+1) + '</svg>';
+    } else {
+      svg = svg.slice(0, svg.indexOf('</svg>')+6);
+    }
+    return svg;
   }catch(e){ return placeholderSvg(); }
 }
 
