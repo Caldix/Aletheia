@@ -16,6 +16,26 @@ let settings = store.get('settings') || { apiKey:"" };
 function initSettings(){ $('apiKey').value = settings.apiKey||""; }
 $('setBtn').onclick = ()=>{ const s=$('settings'); s.style.display = s.style.display==='none'?'block':'none'; initSettings(); };
 $('setSave').onclick = ()=>{ settings.apiKey=$('apiKey').value.trim(); store.set('settings',settings); $('settings').style.display='none'; };
+$('testBtn').onclick = async ()=>{
+  const key = $('apiKey').value.trim();
+  const out = $('testOut');
+  if(!key){ out.textContent = "Pune întâi cheia în câmpul de mai sus."; return; }
+  out.textContent = "Se testează…";
+  try{
+    const r = await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",
+      headers:{ "Content-Type":"application/json", "x-api-key":key,
+                "anthropic-version":"2023-06-01",
+                "anthropic-dangerous-direct-browser-access":"true" },
+      body:JSON.stringify({model:MODEL_TEXT, max_tokens:16, messages:[{role:"user",content:"salut"}]})
+    });
+    const d = await r.json().catch(()=>({}));
+    if(r.ok) out.textContent = "✅ Conexiune reușită — cheia funcționează.";
+    else out.textContent = `❌ HTTP ${r.status} — ${d.error ? d.error.type+": "+d.error.message : "răspuns neașteptat"}`;
+  }catch(e){
+    out.textContent = "❌ Cererea nu a ajuns la server ("+e.message+"). Cauze uzuale: extensie de blocare/adblock, VPN, firewall de rețea, sau conexiune fără internet.";
+  }
+};
 initSettings();
 
 // ---------- UI setup ----------
@@ -81,32 +101,59 @@ $('go').onclick = async ()=>{
     const nume = $('nume').value.trim();
     const directii = $('directii').value.trim();
     const atmosfera = $('atmosfera').value.trim();
-    const storyPrompt = `Ești un scriitor de povești pentru copii cu multă experiență, iubit de copii și de părinți — genul de autor ale cărui cărți se citesc seara, cu copilul cuibărit lângă tine. Scrii în limba română impecabilă, cu diacritice corecte.
+    const storyPrompt = `Ești un scriitor de povești pentru copii cu decenii de experiență, tradus în multe limbi și iubit deopotrivă de copii și de părinți. Scrii în limba română impecabilă, cu diacritice corecte.
+
+Familia ta spirituală de autori și povestitori — imită felul lor de a gândi, nu personajele lor:
+- Sven Nordqvist (Pettson și Findus): cotidianul unei gospodării devine aventură; bătrânul și motanul care vorbește, o poznă care escaladează minunat, tandrețe fără vorbe mari, umor din situație
+- Roald Dahl (Uriașul Prietenos): limbaj inventiv și jucăuș, cuvinte stâlcite delicios, copilul e luat în serios ca partener de conspirație, adulții pot fi caraghioși
+- Povestea prințesei Kaguya și Song of the Sea: melancolie blândă, mitologie și natură vie, frumusețe în lucruri simple, un dor care nu se explică
+- Hayao Miyazaki: fără răufăcători, conflictul e interior; momente de liniște în care nu se întâmplă nimic și tocmai de-aceea contează; hrană, vânt, apă, făcute concrete
 
 Scrie o poveste pentru un copil de ${selAge}, care abordează cu blândețe situația: "${situatie}".
-${directii ? `Idei importante de la părinte, de integrat natural în poveste: ${directii}` : ""}
+${directii ? `Idei importante de la părinte, de integrat natural: ${directii}` : ""}
 ${nume ? `Personajul principal se numește ${nume}.` : "Alege un personaj principal simpatic (copil sau animăluț), cu un nume simplu și firesc."}
 ${atmosfera ? `Personaje, animale sau atmosferă dorite de părinte: ${atmosfera}` : ""}
 
-Vocea ta de autor:
-- limbaj viu și expresiv, cu cuvinte alese frumos — inclusiv câte un cuvânt mai deosebit pe care copilul îl poate învăța din context (fără să sune prețios)
-- duioșie: momente calde, tandre, care se simt sincere, nu siropoase
-- umor blând: o poznă, o exagerare simpatică, un personaj puțin caraghios — copiii trebuie să zâmbească pe parcurs
-- o morală limpede, dar care reiese firesc din întâmplări; nu o rosti niciodată ca pe o lecție, cel mult printr-o replică jucăușă la final
-- ritm de citit cu voce tare: propoziții care curg, mici repetiții și sonorități care plac copiilor
-- nimic robotic sau schematic — fiecare poveste să aibă un detaliu memorabil, numai al ei
+Cum scrii:
+- profunzime accesibilă: povestea atinge ceva adevărat despre a fi mic într-o lume mare, dar spus prin întâmplări concrete pe care un copil de ${selAge} le poate urmări
+- un detaliu ciudat și specific care face povestea de neuitat (un obiect, o obișnuință, un nume caraghios) — nu generalități
+- senzorial: mirosuri, sunete, texturi, temperaturi — copilul trebuie să simtă scena
+- umor blând, din situație și din caracter, nu din glume lipite
+- duioșie arătată prin gesturi mici, niciodată declarată
+- morala trăită, nu rostită: nu scrie niciodată propoziții de tipul „a înțeles că..." sau „de atunci a știut că..."
+- ritm de citit cu voce tare: propoziții de lungimi diferite, câte o repetiție cu haz
 
-Cerințe:
-- lungime și complexitate adecvate vârstei ${selAge} (propoziții scurte și simple pentru cei mici, mai bogate pentru cei mari)
-- 5-7 paragrafe scurte
-- final liniștitor, potrivit pentru culcare
+INTERZIS (sună robotic, evită complet): „într-o zi însorită", „era odată un/o mic/mică...", „toți au fost foarte fericiți", „a învățat o lecție importantă", „plin de bucurie", „cu un zâmbet mare pe față", morala explicată la final, adjective în lanț („frumoasă, veselă și bună"), personaje fără cusur, propoziții care încep toate la fel.
+
+Cerințe: lungime și complexitate potrivite vârstei ${selAge}; 6-8 paragrafe scurte; final liniștitor, potrivit pentru culcare.
 
 Răspunde DOAR cu JSON valid pe o singură linie, fără backticks.
 FOARTE IMPORTANT pentru JSON valid: în interiorul textelor nu folosi niciodată ghilimele drepte ("). Pentru dialog folosește ghilimele românești (\u201E \u201D) sau linia de dialog (—). Fără newline în interiorul textelor.
 Format: {"titlu":"...","paragrafe":["...","..."]}`;
 
-    setProg(55,"Autorul își moaie penița…");
-    const story = safeParseJSON(await claude(storyPrompt, 3000, MODEL_TEXT));
+    setProg(40,"Se scrie ciorna…");
+    const draft = safeParseJSON(await claude(storyPrompt, 3000, MODEL_TEXT));
+
+    setProg(70,"Autorul rescrie și șlefuiește…");
+    const editPrompt = `Ești un redactor de carte pentru copii, exigent și cu ureche bună pentru limba română. Primești ciorna unui autor. Rescrie-o, nu doar corecta.
+
+Ciorna:
+${JSON.stringify(draft)}
+
+Ce faci la rescriere:
+1. Taie orice frază care sună a manual sau a inteligență artificială — formulări generice, explicații de prisos, morală rostită.
+2. Înlocuiește verbele slabe și adjectivele leneșe cu unele precise. Adaugă 2-3 cuvinte mai deosebite, dar deductibile din context de un copil de ${selAge}.
+3. Verifică fiecare paragraf: dacă nu aduce ceva nou (o imagine, o replică, o cotitură), rescrie-l sau contopește-l.
+4. Întărește un singur detaliu specific în așa fel încât să devină semnătura poveștii, revenind discret spre final.
+5. Verifică româna: acorduri, cratime, diacritice, dialog cu linie de dialog corectă.
+6. Păstrează sensul, personajele și lungimea aproximativă. Nu adăuga morală.
+
+Răspunde DOAR cu JSON valid pe o singură linie, fără backticks, fără ghilimele drepte în interiorul textelor.
+Format: {"titlu":"...","paragrafe":["...","..."]}`;
+
+    let story;
+    try{ story = safeParseJSON(await claude(editPrompt, 3000, MODEL_TEXT)); }
+    catch(e){ story = draft; }  // dacă trecerea editorială eșuează, păstrăm ciorna
     setProg(100,"Gata!");
     current = { id:Date.now(), titlu:story.titlu, varsta:selAge, situatie,
                 paragrafe:story.paragrafe };

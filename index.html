@@ -6,8 +6,8 @@
 <meta name="theme-color" content="#5C7A5E">
 <title>Poveștar — povești pentru copii</title>
 <link rel="manifest" href="manifest.json">
-<link rel="icon" href="icons/icon-192.png">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=Nunito:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -15,7 +15,7 @@
 <body>
 <div class="wrap">
   <header>
-    <h1><img src="icons/icon-192.png" alt="" class="logo" onerror="this.style.display='none'"> Poveștar</h1>
+    <h1><img src="icon-192.png" alt="" class="logo" onerror="this.style.display='none'"> Poveștar</h1>
     <p>Povești pe măsura copilului tău, scrise cu duioșie și umor</p>
     <button id="setBtn" class="gear" title="Setări">⚙️</button>
   </header>
@@ -25,8 +25,10 @@
     <label for="apiKey">Cheie API Anthropic</label>
     <input type="text" id="apiKey" placeholder="sk-ant-…" autocomplete="off">
     <p class="hint">Cheia se salvează doar în browserul tău (localStorage) și e trimisă direct către api.anthropic.com. O obții din console.anthropic.com → API Keys.</p>
-    <p class="hint">Model: <b>Sonnet 4.6</b> — proză în română, scrisă cu grijă. ≈ $0,02 / poveste.</p>
+    <p class="hint">Model: <b>Sonnet 4.6</b>. Fiecare poveste se scrie în două trepte — ciornă, apoi o trecere editorială care o șlefuiește. ≈ $0,05 / poveste.</p>
     <button class="btn secondary" id="setSave">Salvează setările</button>
+    <button class="btn secondary" id="testBtn">🔌 Testează conexiunea</button>
+    <p class="hint" id="testOut"></p>
   </div>
 
   <div class="card" id="form">
