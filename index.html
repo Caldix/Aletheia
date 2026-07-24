@@ -57,6 +57,26 @@
     <label for="nume">Numele copilului (opțional — devine eroul poveștii)</label>
     <input type="text" id="nume" placeholder="ex: Maia">
 
+    <label>Persoane din poveste (opțional)</label>
+    <p class="hint">Încarcă o poză și spune cine e — personajele vor fi desenate după chipul real, în stilul ales.</p>
+    <div id="people"></div>
+    <div class="person-add">
+      <input type="text" id="pName" placeholder="Nume (ex: Maia)">
+      <select id="pRole">
+        <option value="copilul">copilul</option>
+        <option value="mama">mama</option>
+        <option value="tata">tata</option>
+        <option value="sora">sora</option>
+        <option value="fratele">fratele</option>
+        <option value="bunica">bunica</option>
+        <option value="bunicul">bunicul</option>
+        <option value="prieten">prieten</option>
+        <option value="animalul de companie">animalul de companie</option>
+      </select>
+      <button class="btn secondary" id="pAdd">📷 Adaugă poză</button>
+      <input type="file" id="pFile" accept="image/*" hidden>
+    </div>
+
     <button class="btn" id="go">✨ Creează povestea</button>
     <div class="err" id="err"></div>
   </div>

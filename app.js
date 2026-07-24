@@ -118,11 +118,62 @@ async function imgLoad(key){
   }catch(e){ return null }
 }
 
+// ---------- persoane (poze de referință) ----------
+function compressImage(file, max=640){
+  return new Promise((res,rej)=>{
+    const fr=new FileReader();
+    fr.onload=()=>{
+      const img=new Image();
+      img.onload=()=>{
+        const sc=Math.min(1, max/Math.max(img.width,img.height));
+        const c=document.createElement('canvas');
+        c.width=Math.round(img.width*sc); c.height=Math.round(img.height*sc);
+        c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+        res(c.toDataURL('image/jpeg',0.85));
+      };
+      img.onerror=()=>rej(new Error("Poza nu a putut fi citită"));
+      img.src=fr.result;
+    };
+    fr.onerror=()=>rej(new Error("Fișierul nu a putut fi citit"));
+    fr.readAsDataURL(file);
+  });
+}
+
+let people = store.get('people') || [];   // [{id, nume, rol, key}]
+async function renderPeople(){
+  const box=$('people'); box.innerHTML="";
+  for(const p of people){
+    const url = await imgLoad(p.key);
+    const d=document.createElement('div'); d.className='person';
+    d.innerHTML = `${url?`<img src="${url}" alt="">`:''}<span><b>${esc(p.nume)}</b><br><small>${esc(p.rol)}</small></span>
+                   <button data-del="${p.id}" title="Șterge">🗑</button>`;
+    d.querySelector('[data-del]').onclick=()=>{ people=people.filter(x=>x.id!==p.id); store.set('people',people); renderPeople(); };
+    box.appendChild(d);
+  }
+}
+$('pAdd').onclick = ()=>{
+  if(!$('pName').value.trim()){ showErr("Scrie întâi numele persoanei, apoi alege poza."); return; }
+  hideErr(); $('pFile').click();
+};
+$('pFile').onchange = async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  try{
+    const dataUrl = await compressImage(f);
+    const id = 'p'+Date.now(), key='person-'+id;
+    await imgSave(key, dataUrl);
+    people.push({id, nume:$('pName').value.trim(), rol:$('pRole').value, key});
+    store.set('people',people);
+    $('pName').value=""; e.target.value="";
+    renderPeople();
+  }catch(err){ showErr("Poza nu a putut fi încărcată: "+err.message); }
+};
+renderPeople();
+
 // ---------- Gemini: generare ilustrații ----------
-async function geminiImage(prompt, refImageDataUrl){
+async function geminiImage(prompt, refs){
   const parts = [{text: prompt}];
-  if(refImageDataUrl){
-    const [meta,b64] = refImageDataUrl.split(',');
+  for(const url of (refs||[]).filter(Boolean)){
+    const [meta,b64] = url.split(',');
     parts.push({inline_data:{mime_type: meta.includes('png')?'image/png':'image/jpeg', data: b64}});
   }
   const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent",{
@@ -149,6 +200,16 @@ Also give a shared character sheet describing the main characters so they look i
 Respond ONLY with valid single-line JSON: {"personaje":"character sheet...","imagini":[{"paragraf":<index of the paragraph it illustrates, 0-based>,"brief":"..."}]}`;
   const plan = safeParseJSON(await claude(briefPrompt, 1500, MODEL_TEXT));
 
+  // pozele de referință pentru asemănare
+  const photos = [], photoNotes = [];
+  for(const p of people){
+    const url = await imgLoad(p.key);
+    if(url){ photos.push(url); photoNotes.push(`reference photo ${photos.length}: ${p.nume}, ${p.rol}`); }
+  }
+  const likeness = photos.length
+    ? `The attached reference photos show the real people this story is about — ${photoNotes.join('; ')}. Draw these characters as stylised illustrations that clearly resemble them (face shape, hair colour and style, skin tone, approximate age, glasses if any), but fully redrawn in the art style described above. Never photorealistic — always a painted picture-book character.`
+    : "";
+
   const images = [];
   let ref = null;
   for(let i=0;i<plan.imagini.length;i++){
@@ -156,10 +217,11 @@ Respond ONLY with valid single-line JSON: {"personaje":"character sheet...","ima
     const p = `Children's picture-book illustration, no text or lettering anywhere in the image.
 Art style: ${style.prompt}
 Characters (must look identical in every illustration): ${plan.personaje}
+${likeness}
 Scene: ${plan.imagini[i].brief}
 Full-bleed painterly illustration, 4:3 landscape, rich background, characters as focal point, gentle storybook atmosphere.`;
     try{
-      const url = await geminiImage(p, ref);
+      const url = await geminiImage(p, [...photos, ref]);
       if(!ref) ref = url;                       // prima imagine devine referință de consistență
       const key = `${storyId}-${i}`;
       await imgSave(key, url);
@@ -217,6 +279,7 @@ Scrie o poveste pentru un copil de ${selAge}, care abordează cu blândețe situ
 ${directii ? `Idei importante de la părinte, de integrat natural: ${directii}` : ""}
 ${nume ? `Personajul principal se numește ${nume}.` : "Alege un personaj principal simpatic (copil sau animăluț), cu un nume simplu și firesc."}
 ${atmosfera ? `Personaje, animale sau atmosferă dorite de părinte: ${atmosfera}` : ""}
+${people.length ? `Personaje reale care trebuie să apară în poveste, cu numele și rolul lor: ${people.map(p=>`${p.nume} (${p.rol})`).join(', ')}. Folosește-le firesc, fără să le descrii fizic.` : ""}
 
 Cum scrii:
 - profunzime accesibilă: povestea atinge ceva adevărat despre a fi mic într-o lume mare, dar spus prin întâmplări concrete pe care un copil de ${selAge} le poate urmări
