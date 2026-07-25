@@ -154,11 +154,47 @@ async function renderChars(){
     d.innerHTML = `${url?`<img src="${url}" alt="">`:''}
       <span><b>${esc(c.nume)}</b> <small>${esc(c.rol)}</small>${c.detalii?`<br><small>${esc(c.detalii)}</small>`:''}</span>
       <button class="pick" data-pick="${c.id}">${on?'✓ inclus':'+ include'}</button>
+      <button class="edit" data-edit="${c.id}" title="Modifică">✏️</button>
       <button data-del="${c.id}" title="Șterge">🗑</button>`;
     d.querySelector('[data-pick]').onclick=()=>{ on?chosen.delete(c.id):chosen.add(c.id); renderChars(); };
-    d.querySelector('[data-del]').onclick=()=>{ chars=chars.filter(x=>x.id!==c.id); chosen.delete(c.id); store.set('chars',chars); renderChars(); };
+    d.querySelector('[data-edit]').onclick=()=> openEdit(c.id);
+    d.querySelector('[data-del]').onclick=()=>{ if(!confirm(`Ștergi personajul ${c.nume}?`)) return; chars=chars.filter(x=>x.id!==c.id); chosen.delete(c.id); store.set('chars',chars); renderChars(); };
     box.appendChild(d);
   }
+}
+
+let editId = null;
+function openEdit(id){
+  const c = chars.find(x=>x.id===id); if(!c) return;
+  editId = id;
+  const box=$('charChosen');
+  const roles=["copilul","mama","tata","sora","fratele","bunica","bunicul","prieten","animalul de companie"];
+  box.insertAdjacentHTML('afterbegin', `<div class="person edit-panel" id="editPanel">
+    <b>Modifică ${esc(c.nume)}</b>
+    <input type="text" id="eName" value="${esc(c.nume)}">
+    <select id="eRole">${roles.map(r=>`<option value="${r}"${r===c.rol?' selected':''}>${r}</option>`).join('')}</select>
+    <input type="text" id="eDetails" placeholder="Detalii (opțional)" value="${esc(c.detalii||'')}">
+    <div class="edit-actions">
+      <label class="btn secondary file-btn" for="eFile">📷 Schimbă poza</label>
+      <input type="file" id="eFile" accept="image/*" class="file-input">
+      <button class="btn" id="eSave">Salvează</button>
+      <button class="btn secondary" id="eCancel">Renunță</button>
+    </div>
+    <p class="hint" id="eMsg"></p>
+  </div>`);
+  $('eFile').onchange = async ev=>{
+    const f=ev.target.files[0]; if(!f) return;
+    $('eMsg').textContent="Se procesează poza…";
+    try{ await imgSave(c.key, await compressImage(f)); $('eMsg').textContent="Poză actualizată."; }
+    catch(err){ $('eMsg').textContent="Eroare: "+err.message; }
+  };
+  $('eSave').onclick = ()=>{
+    c.nume = $('eName').value.trim() || c.nume;
+    c.rol = $('eRole').value;
+    c.detalii = $('eDetails').value.trim();
+    store.set('chars',chars); editId=null; renderChars();
+  };
+  $('eCancel').onclick = ()=>{ editId=null; renderChars(); };
 }
 $('cFile').onchange = async e=>{
   const f=e.target.files[0]; if(!f) return;
@@ -323,20 +359,23 @@ Format: {"titlu":"...","paragrafe":["...","..."]}`;
     const draft = safeParseJSON(await claude(storyPrompt, 3000, MODEL_TEXT));
 
     setProg(55,"Autorul rescrie și șlefuiește…");
-    const editPrompt = `Ești un redactor de carte pentru copii, exigent, cu ureche fină pentru limba română literară. Primești ciorna unui autor. Rescrie-o cu adevărat, nu doar corecta — trebuie să sune ca proză de carte publicată, artistică și îngrijită.
+    const editPrompt = `Ești un redactor de literatură pentru copii, cu ureche de poet și exigență de editor bun. Primești ciorna unui autor. Rescrie-o astfel încât să sune ca proză literară adevărată — de calitatea celor mai iubite cărți pentru copii, nu ca un text de aplicație.
 
 Ciorna:
 ${JSON.stringify(draft)}
 
-Reguli de rescriere:
-1. Limbă română impecabilă și literară: acorduri, cratime, diacritice, topică firească. Elimină orice construcție stângace, calc după engleză, sau formulare de robot.
-2. Ritm și muzicalitate: variază lungimea propozițiilor, folosește imagini concrete și verbe puternice. Fiecare paragraf trebuie să sune frumos citit cu voce tare.
-3. Taie clișeele și explicațiile de prisos. Nu rosti niciodată morala.
-4. Adaugă 2-3 cuvinte alese, mai deosebite, dar deductibile din context de un copil de ${selAge}.
-5. Întărește un detaliu specific care devine semnătura poveștii.
-6. Păstrează sensul, personajele și lungimea aproximativă.
+Standardul la care ridici textul:
+1. Limbă română impecabilă și frumoasă: acorduri și cratime corecte, diacritice, topică firească, zero calc după engleză, zero stângăcii.
+2. Muzicalitate: alternează propoziții scurte cu unele mai lungi și curgătoare. Caută ritmul care se aude bine citit cu voce tare seara. Folosește, cu măsură, aliterații, reluări și cadențe care plac copiilor.
+3. Imagini concrete și senzoriale în locul abstracțiunilor: arată mirosul, lumina, sunetul, textura. Un detaliu văzut face mai mult decât o explicație.
+4. Verbe vii și precise; taie adverbele și adjectivele leneșe. Un cuvânt bine ales în locul a trei aproximative.
+5. Presară 2-3 cuvinte mai rare și frumoase, dar deductibile din context de un copil de ${selAge} — genul de cuvânt pe care un copil îl reține pentru că sună bine.
+6. Metafore și comparații mici, proaspete, pe înțelesul vârstei — niciodată clișee.
+7. Fără morală rostită, fără explicații de prisos. Emoția și înțelesul se transmit prin întâmplare și gest, nu prin declarații.
+8. Un detaliu-semnătură care revine discret și dă poveștii unitate.
+9. Păstrează sensul, personajele și lungimea aproximativă.
 
-Apoi tradu povestea rescrisă în engleză, cu aceeași grijă literară — proză naturală și frumoasă de carte pentru copii, nu traducere cuvânt cu cuvânt.
+Apoi tradu povestea rescrisă în engleză literară de aceeași calitate — proză naturală și frumoasă de carte pentru copii, cu același ritm și aceleași imagini, nu traducere mecanică.
 
 Răspunde DOAR cu JSON valid pe o singură linie, fără backticks, fără ghilimele drepte în interiorul textelor (folosește \u201E \u201D sau —).
 Format: {"titlu":"...","paragrafe":["..."],"titlu_en":"...","paragrafe_en":["..."]}`;

@@ -136,3 +136,9 @@ header{position:relative}
 .person .pick{border:1.5px solid var(--forest);background:#fff;color:var(--forest-deep);border-radius:999px;font-family:'Nunito',sans-serif;font-weight:700;font-size:.75rem;padding:5px 11px;cursor:pointer;white-space:nowrap}
 .person.chosen .pick{background:var(--forest);color:#fff}
 .person-add input#cDetails{flex:1 1 100%;min-width:100%}
+.edit-panel{flex-wrap:wrap;background:#F0F5EF;border-radius:14px;padding:14px}
+.edit-panel>b{flex:1 1 100%;font-family:'Baloo 2',cursive;color:var(--forest-deep);margin-bottom:6px}
+.edit-panel input[type=text],.edit-panel select{flex:1 1 100%;min-width:100%;margin-bottom:8px}
+.edit-actions{display:flex;gap:8px;flex-wrap:wrap;width:100%}
+.edit-actions .btn{margin-top:0;flex:1;min-width:120px}
+.person .edit{border:none;background:none;cursor:pointer;font-size:1.05rem}
