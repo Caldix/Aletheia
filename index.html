@@ -53,12 +53,12 @@
     <label for="nume">Numele copilului (opțional — devine eroul poveștii)</label>
     <input type="text" id="nume" placeholder="ex: Maia">
 
-    <label>Persoane din poveste (opțional)</label>
-    <p class="hint">Încarcă o poză și spune cine e — personajele vor fi desenate după chipul real, în stilul ales.</p>
-    <div id="people"></div>
+    <label>Personaje din poveste (opțional)</label>
+    <p class="hint">Salvează personaje o dată (nume, poză, detalii) și bifează-le când vrei să apară. Vor fi desenate după chip, în stilul ales.</p>
+    <div id="charChosen"></div>
     <div class="person-add">
-      <input type="text" id="pName" placeholder="Nume (ex: Maia)">
-      <select id="pRole">
+      <input type="text" id="cName" placeholder="Nume (ex: Maia)">
+      <select id="cRole">
         <option value="copilul">copilul</option>
         <option value="mama">mama</option>
         <option value="tata">tata</option>
@@ -69,10 +69,11 @@
         <option value="prieten">prieten</option>
         <option value="animalul de companie">animalul de companie</option>
       </select>
-      <label class="btn secondary file-btn" for="pFile">📷 Adaugă poză</label>
-      <input type="file" id="pFile" accept="image/*" class="file-input">
+      <input type="text" id="cDetails" placeholder="Detalii (opțional): îi place fotbalul, poartă ochelari…">
+      <label class="btn secondary file-btn" for="cFile">📷 Salvează personaj (cu poză)</label>
+      <input type="file" id="cFile" accept="image/*" class="file-input">
     </div>
-    <p class="hint" id="pMsg"></p>
+    <p class="hint" id="cMsg"></p>
 
     <label>Stilul ilustrațiilor</label>
     <div class="age-row" id="artStyles"></div>

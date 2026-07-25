@@ -20,10 +20,12 @@ const ART_STYLES = [
   {id:"acuarela", nume:"Acuarelă clasică",
    prompt:"Classic English children's-book WATERCOLOUR on white paper, in the tradition of Beatrix Potter and Quentin Blake. Loose wet-on-wet washes with visible paper grain and blooming edges, scratchy fine ink linework over the paint, LOTS of untouched white paper as background — no full-bleed colour, no dense backgrounds. Delicate, airy, muted natural palette. Looks painted by hand with a real brush, slightly imperfect."},
   {id:"papercut", nume:"Colaj de hârtie",
-   prompt:"Handmade PAPER COLLAGE illustration, in the tradition of Eric Carle and Leo Lionni. Every element is a piece of torn or cut painted paper with visible fibres, brush texture and rough edges, layered flat with small shadows between layers. Bold simple silhouettes, no gradients, no painted lighting, no fine detail — shapes only. Bright warm palette on a plain paper background. Must clearly look like cut paper, not like a painting."}
+   prompt:"Handmade PAPER COLLAGE illustration, in the tradition of Eric Carle and Leo Lionni. Every element is a piece of torn or cut painted paper with visible fibres, brush texture and rough edges, layered flat with small shadows between layers. Bold simple silhouettes, no gradients, no painted lighting, no fine detail — shapes only. Bright warm palette on a plain paper background. Must clearly look like cut paper, not like a painting."},
+  {id:"findus", nume:"Findus (Nordqvist)",
+   prompt:"Detailed pen-and-watercolour illustration in the exact style of Sven Nordqvist's Pettson and Findus books. Busy, richly detailed scenes crammed with tiny funny background events, ramshackle Swedish farmhouse and garden, wobbly organic ink linework, warm muted watercolour washes, lots of little creatures and objects hidden everywhere, cosy and humorous. Characters include Pettson (a tall lanky old farmer with a bushy grey beard, bald head with tufts of hair, round nose, dungarees and a floppy hat) and Findus (a small striped green-and-white cat wearing tiny red-and-green striped trousers, very expressive and mischievous)."}
 ];
-const ART_COUNTS = [2,3,4];
-let settings = Object.assign({ apiKey:"", gemKey:"", artStyle:"miyazaki", artCount:3 }, store.get('settings')||{});
+const ART_COUNTS = [2,3,4,5];
+let settings = Object.assign({ apiKey:"", gemKey:"", artStyle:"miyazaki", artCount:2 }, store.get('settings')||{});
 function initSettings(){
   $('apiKey').value = settings.apiKey||"";
   $('gemKey').value = settings.gemKey||"";
@@ -139,36 +141,46 @@ function compressImage(file, max=640){
   });
 }
 
-let people = store.get('people') || [];   // [{id, nume, rol, key}]
-async function renderPeople(){
-  const box=$('people'); box.innerHTML="";
-  for(const p of people){
-    const url = await imgLoad(p.key);
-    const d=document.createElement('div'); d.className='person';
-    d.innerHTML = `${url?`<img src="${url}" alt="">`:''}<span><b>${esc(p.nume)}</b><br><small>${esc(p.rol)}</small></span>
-                   <button data-del="${p.id}" title="Șterge">🗑</button>`;
-    d.querySelector('[data-del]').onclick=()=>{ people=people.filter(x=>x.id!==p.id); store.set('people',people); renderPeople(); };
+let chars = store.get('chars') || [];   // biblioteca: [{id, nume, rol, detalii, key}]
+let chosen = new Set();                  // id-urile bifate pentru povestea curentă
+
+async function renderChars(){
+  const box=$('charChosen'); box.innerHTML="";
+  if(!chars.length){ box.innerHTML=`<p class="hint">Niciun personaj salvat încă.</p>`; return; }
+  for(const c of chars){
+    const url = await imgLoad(c.key);
+    const on = chosen.has(c.id);
+    const d=document.createElement('div'); d.className='person'+(on?' chosen':'');
+    d.innerHTML = `${url?`<img src="${url}" alt="">`:''}
+      <span><b>${esc(c.nume)}</b> <small>${esc(c.rol)}</small>${c.detalii?`<br><small>${esc(c.detalii)}</small>`:''}</span>
+      <button class="pick" data-pick="${c.id}">${on?'✓ inclus':'+ include'}</button>
+      <button data-del="${c.id}" title="Șterge">🗑</button>`;
+    d.querySelector('[data-pick]').onclick=()=>{ on?chosen.delete(c.id):chosen.add(c.id); renderChars(); };
+    d.querySelector('[data-del]').onclick=()=>{ chars=chars.filter(x=>x.id!==c.id); chosen.delete(c.id); store.set('chars',chars); renderChars(); };
     box.appendChild(d);
   }
 }
-$('pFile').onchange = async e=>{
+$('cFile').onchange = async e=>{
   const f=e.target.files[0]; if(!f) return;
-  const msg = $('pMsg');
-  msg.textContent = "Se pregătește poza…";
+  const msg=$('cMsg'); msg.textContent="Se salvează personajul…";
   try{
     const dataUrl = await compressImage(f);
-    const rol = $('pRole').value;
-    const nume = $('pName').value.trim() || rol.charAt(0).toUpperCase()+rol.slice(1);
-    const id = 'p'+Date.now(), key='person-'+id;
+    const rol=$('cRole').value;
+    const nume=$('cName').value.trim() || rol.charAt(0).toUpperCase()+rol.slice(1);
+    const id='c'+Date.now(), key='char-'+id;
     await imgSave(key, dataUrl);
-    people.push({id, nume, rol, key});
-    store.set('people',people);
-    $('pName').value=""; e.target.value="";
-    msg.textContent = `${nume} a fost adăugat${rol==='mama'||rol==='sora'||rol==='bunica'?'ă':''}.`;
-    renderPeople();
-  }catch(err){ msg.textContent = "Poza nu a putut fi încărcată: "+err.message; }
+    chars.push({id, nume, rol, detalii:$('cDetails').value.trim(), key});
+    chosen.add(id);
+    store.set('chars',chars);
+    $('cName').value=""; $('cDetails').value=""; e.target.value="";
+    msg.textContent=`${nume} a fost salvat și inclus în poveste.`;
+    renderChars();
+  }catch(err){ msg.textContent="Poza nu a putut fi încărcată: "+err.message; }
 };
-renderPeople();
+renderChars();
+
+// personajele efectiv folosite în povestea curentă
+function activeChars(){ return chars.filter(c=>chosen.has(c.id)); }
 
 // ---------- Gemini: generare ilustrații ----------
 async function geminiImage(prompt, refs){
@@ -196,7 +208,7 @@ async function makeIllustrations(story, storyId){
   // 1. Claude alege momentele și scrie brief-urile vizuale
   const briefPrompt = `Read this Romanian children's story and pick the ${n} most visually beautiful moments to illustrate.
 Story: ${JSON.stringify(story)}
-${people.length ? `IMPORTANT: these characters are real people drawn from photographs — ${people.map(p=>`${p.nume} (${p.rol})`).join(', ')}. NEVER describe their face, hair, skin or age; only describe their clothing, posture, action and expression. Their appearance comes from the photos, not from you.` : ""}
+${activeChars().length ? `IMPORTANT: these characters are real people drawn from photographs — ${activeChars().map(p=>`${p.nume} (${p.rol})`).join(', ')}. NEVER describe their face, hair, skin or age; only describe their clothing, posture, action and expression. Their appearance comes from the photos, not from you.` : ""}
 For each moment, write an art brief in English describing exactly what is drawn: who is present, their action and expression, the setting, time of day, and mood. Be concrete and specific. No text or lettering in the images.
 Also give a shared character sheet so characters look consistent — but for the real people above, list only their name, role and clothing.
 Respond ONLY with valid single-line JSON: {"personaje":"character sheet...","imagini":[{"paragraf":<index of the paragraph it illustrates, 0-based>,"brief":"..."}]}`;
@@ -204,7 +216,7 @@ Respond ONLY with valid single-line JSON: {"personaje":"character sheet...","ima
 
   // pozele de referință pentru asemănare
   const photos = [], photoNotes = [];
-  for(const p of people){
+  for(const p of activeChars()){
     const url = await imgLoad(p.key);
     if(url){ photos.push(url); photoNotes.push(`reference photo ${photos.length}: ${p.nume}, ${p.rol}`); }
   }
@@ -234,6 +246,7 @@ Full-bleed painterly illustration, 4:3 landscape, rich background, characters as
       await imgSave(key, url);
       images.push({key, paragraf: plan.imagini[i].paragraf});
     }catch(e){ /* sărim peste ilustrația eșuată */ }
+    if(i < plan.imagini.length-1) await new Promise(r=>setTimeout(r,1200)); // răgaz anti-rate-limit
   }
   return images;
 }
@@ -286,7 +299,8 @@ Scrie o poveste pentru un copil de ${selAge}, care abordează cu blândețe situ
 ${directii ? `Idei importante de la părinte, de integrat natural: ${directii}` : ""}
 ${nume ? `Personajul principal se numește ${nume}.` : "Alege un personaj principal simpatic (copil sau animăluț), cu un nume simplu și firesc."}
 ${atmosfera ? `Personaje, animale sau atmosferă dorite de părinte: ${atmosfera}` : ""}
-${people.length ? `Personaje reale care trebuie să apară în poveste, cu numele și rolul lor: ${people.map(p=>`${p.nume} (${p.rol})`).join(', ')}. Folosește-le firesc, fără să le descrii fizic.` : ""}
+${activeChars().length ? `Personaje reale care trebuie să apară în poveste: ${activeChars().map(p=>`${p.nume} (${p.rol})${p.detalii?` — ${p.detalii}`:''}`).join('; ')}. Folosește-le firesc, ține cont de detalii, dar nu le descrie fizic.` : ""}
+${settings.artStyle==='findus' ? `Această poveste este în lumea lui Pettson și Findus (Sven Nordqvist). Include-i pe bătrânul Pettson și pe motanul vorbăreț și poznaș Findus ca personaje — cu umorul, tandrețea și micile pozne caracteristice lor. Gospodăria, grădina și in, invențiile trăsnite ale lui Pettson fac parte din atmosferă.` : ""}
 
 Cum scrii:
 - profunzime accesibilă: povestea atinge ceva adevărat despre a fi mic într-o lume mare, dar spus prin întâmplări concrete pe care un copil de ${selAge} le poate urmări
@@ -308,36 +322,44 @@ Format: {"titlu":"...","paragrafe":["...","..."]}`;
     setProg(40,"Se scrie ciorna…");
     const draft = safeParseJSON(await claude(storyPrompt, 3000, MODEL_TEXT));
 
-    setProg(70,"Autorul rescrie și șlefuiește…");
-    const editPrompt = `Ești un redactor de carte pentru copii, exigent și cu ureche bună pentru limba română. Primești ciorna unui autor. Rescrie-o, nu doar corecta.
+    setProg(55,"Autorul rescrie și șlefuiește…");
+    const editPrompt = `Ești un redactor de carte pentru copii, exigent, cu ureche fină pentru limba română literară. Primești ciorna unui autor. Rescrie-o cu adevărat, nu doar corecta — trebuie să sune ca proză de carte publicată, artistică și îngrijită.
 
 Ciorna:
 ${JSON.stringify(draft)}
 
-Ce faci la rescriere:
-1. Taie orice frază care sună a manual sau a inteligență artificială — formulări generice, explicații de prisos, morală rostită.
-2. Înlocuiește verbele slabe și adjectivele leneșe cu unele precise. Adaugă 2-3 cuvinte mai deosebite, dar deductibile din context de un copil de ${selAge}.
-3. Verifică fiecare paragraf: dacă nu aduce ceva nou (o imagine, o replică, o cotitură), rescrie-l sau contopește-l.
-4. Întărește un singur detaliu specific în așa fel încât să devină semnătura poveștii, revenind discret spre final.
-5. Verifică româna: acorduri, cratime, diacritice, dialog cu linie de dialog corectă.
-6. Păstrează sensul, personajele și lungimea aproximativă. Nu adăuga morală.
+Reguli de rescriere:
+1. Limbă română impecabilă și literară: acorduri, cratime, diacritice, topică firească. Elimină orice construcție stângace, calc după engleză, sau formulare de robot.
+2. Ritm și muzicalitate: variază lungimea propozițiilor, folosește imagini concrete și verbe puternice. Fiecare paragraf trebuie să sune frumos citit cu voce tare.
+3. Taie clișeele și explicațiile de prisos. Nu rosti niciodată morala.
+4. Adaugă 2-3 cuvinte alese, mai deosebite, dar deductibile din context de un copil de ${selAge}.
+5. Întărește un detaliu specific care devine semnătura poveștii.
+6. Păstrează sensul, personajele și lungimea aproximativă.
 
-Răspunde DOAR cu JSON valid pe o singură linie, fără backticks, fără ghilimele drepte în interiorul textelor.
-Format: {"titlu":"...","paragrafe":["...","..."]}`;
+Apoi tradu povestea rescrisă în engleză, cu aceeași grijă literară — proză naturală și frumoasă de carte pentru copii, nu traducere cuvânt cu cuvânt.
+
+Răspunde DOAR cu JSON valid pe o singură linie, fără backticks, fără ghilimele drepte în interiorul textelor (folosește \u201E \u201D sau —).
+Format: {"titlu":"...","paragrafe":["..."],"titlu_en":"...","paragrafe_en":["..."]}`;
 
     let story;
-    try{ story = safeParseJSON(await claude(editPrompt, 3000, MODEL_TEXT)); }
+    try{ story = safeParseJSON(await claude(editPrompt, 4000, MODEL_TEXT)); }
     catch(e){ story = draft; }  // dacă trecerea editorială eșuează, păstrăm ciorna
 
     const storyId = Date.now();
     let imagini = [];
     if(settings.gemKey){
-      try{ imagini = await makeIllustrations(story, storyId); }
+      try{
+        imagini = await makeIllustrations(story, storyId);
+        if(imagini.length===0) showErr("Ilustrațiile nu au putut fi generate (verifică cheia Gemini și facturarea Google).");
+        else if(imagini.length < (settings.artCount||2)) showErr(`Au ieșit doar ${imagini.length} din ${settings.artCount} ilustrații — restul au eșuat, poate din limită de rată Google. Poți încerca din nou.`);
+      }
       catch(e){ showErr("Povestea e gata, dar ilustrațiile nu au putut fi generate: "+e.message); }
     }
     setProg(100,"Gata!");
     current = { id:storyId, titlu:story.titlu, varsta:selAge, situatie,
-                paragrafe:story.paragrafe, imagini };
+                paragrafe:story.paragrafe, imagini,
+                titlu_en:story.titlu_en||null, paragrafe_en:story.paragrafe_en||null };
+    lang = 'ro';
     await renderBook(current);
   }catch(e){
     let msg = e.message;
@@ -354,11 +376,36 @@ function showErr(t){ $('err').textContent=t; $('err').classList.add('show'); }
 function hideErr(){ $('err').classList.remove('show'); }
 
 // ---------- render ----------
+let lang = 'ro';
+async function ensureEnglish(st){
+  if(st.paragrafe_en && st.paragrafe_en.length) return true;
+  const p = `Translate this Romanian children's story into beautiful, natural English children's-book prose — literary, not word-for-word. Keep the same paragraphs.
+Story: ${JSON.stringify({titlu:st.titlu, paragrafe:st.paragrafe})}
+Respond ONLY with valid single-line JSON, no straight double quotes inside texts: {"titlu_en":"...","paragrafe_en":["..."]}`;
+  try{
+    const t = safeParseJSON(await claude(p, 3000, MODEL_TEXT));
+    st.titlu_en = t.titlu_en; st.paragrafe_en = t.paragrafe_en;
+    // persistă dacă e salvată
+    const list=store.get('stories')||[]; const idx=list.findIndex(x=>x.id===st.id);
+    if(idx>-1){ list[idx]=st; store.set('stories',list); }
+    return true;
+  }catch(e){ return false; }
+}
+
 async function renderBook(st){
-  $('bTitle').textContent = st.titlu;
-  $('bSub').textContent = `${st.varsta} · ${st.situatie}`;
-  const paras = st.paragrafe || (st.scene||[]).map(s=>s.text);
-  // încarcă imaginile din IndexedDB
+  const hasEn = (st.paragrafe_en && st.paragrafe_en.length);
+  const useEn = (lang==='en');
+  const titlu = useEn && hasEn ? (st.titlu_en||st.titlu) : st.titlu;
+  $('bTitle').textContent = titlu;
+  $('bSub').innerHTML = `${st.varsta} · ${esc(st.situatie)}
+    <span class="langtog"><button data-l="ro" class="${lang==='ro'?'on':''}">RO</button><button data-l="en" class="${lang==='en'?'on':''}">EN</button></span>`;
+  $('bSub').querySelectorAll('.langtog button').forEach(b=> b.onclick=async()=>{
+    if(b.dataset.l===lang) return;
+    if(b.dataset.l==='en'){ b.textContent='…'; if(!await ensureEnglish(st)){ showErr("Traducerea nu a reușit."); b.textContent='EN'; return; } }
+    lang=b.dataset.l; renderBook(st);
+  });
+
+  const paras = (useEn && hasEn ? st.paragrafe_en : (st.paragrafe || (st.scene||[]).map(s=>s.text)));
   const byPara = {};
   for(const im of (st.imagini||[])){
     const url = await imgLoad(im.key);
@@ -369,7 +416,6 @@ async function renderBook(st){
     (byPara[i]||[]).forEach(url=>{ html += `<img class="illus" src="${url}" alt="">`; });
     html += `<p>${esc(p)}</p>`;
   });
-  // imagini cu index în afara intervalului, puse la final
   Object.keys(byPara).filter(k=>k>=paras.length).forEach(k=>{
     byPara[k].forEach(url=>{ html += `<img class="illus" src="${url}" alt="">`; });
   });
@@ -404,10 +450,12 @@ async function buildPdfBlob(st){
   const pages=[]; let pg=newPage(); let first=true;
   const maxW = PW - MARGIN*2;
 
+  const useEn = (lang==='en' && st.paragrafe_en && st.paragrafe_en.length);
+  const titlu = useEn ? (st.titlu_en||st.titlu) : st.titlu;
   // titlu
   pg.x.fillStyle='#3E5940'; pg.x.textBaseline='top';
   pg.x.font='bold 58px Georgia, serif';
-  for(const line of wrapText(pg.x, st.titlu, maxW)){ pg.x.fillText(line, MARGIN, pg.y); pg.y+=68; }
+  for(const line of wrapText(pg.x, titlu, maxW)){ pg.x.fillText(line, MARGIN, pg.y); pg.y+=68; }
   pg.y += 10;
   pg.x.fillStyle='#8A7F70'; pg.x.font='24px Georgia, serif';
   pg.x.fillText(`${st.varsta} · ${st.situatie}`, MARGIN, pg.y); pg.y+=54;
@@ -417,7 +465,7 @@ async function buildPdfBlob(st){
     const url=await imgLoad(im.key);
     if(url) (byPara[im.paragraf]=byPara[im.paragraf]||[]).push(url);
   }
-  const paras = st.paragrafe || (st.scene||[]).map(s=>s.text);
+  const paras = useEn ? st.paragrafe_en : (st.paragrafe || (st.scene||[]).map(s=>s.text));
 
   const pushPage=()=>{ pages.push(pg.c); pg=newPage(); };
 

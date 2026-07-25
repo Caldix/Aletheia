@@ -1,5 +1,5 @@
 // Aletheia service worker — network-first (updates always win, cache as offline fallback)
-const CACHE = 'povestar-v15';
+const CACHE = 'povestar-v16';
 const ASSETS = ['./','./index.html','./style.css','./app.js','./manifest.json','./icon-192.png','./icon-512.png'];
 
 self.addEventListener('install', e => {
